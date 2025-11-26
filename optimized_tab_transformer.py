@@ -20,6 +20,19 @@ Optimized TabTransformer Training Script v2.0
 
 import pandas as pd
 import numpy as np
+import logging
+import os
+import warnings
+import math
+import pickle
+from dataclasses import dataclass
+from enum import Enum
+from typing import Dict, List, Tuple, Optional, Union
+
+# Suppress warnings before importing torch
+warnings.filterwarnings('ignore')
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -30,15 +43,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import matplotlib.pyplot as plt
-from typing import Dict, List, Tuple, Optional, Union
-import os
-import warnings
-import math
-import pickle
-from dataclasses import dataclass
-from enum import Enum
 
-warnings.filterwarnings('ignore')
+# Suppress torch inductor warnings (SM count warnings)
+logging.getLogger("torch._inductor").setLevel(logging.ERROR)
+logging.getLogger("torch._dynamo").setLevel(logging.ERROR)
 
 # =============================================================================
 # Configuration
@@ -59,6 +67,14 @@ class ModelConfig:
     def __post_init__(self):
         if self.hidden_dims is None:
             self.hidden_dims = [128, 64]
+
+
+class CompileMode(Enum):
+    """PyTorch 2.0 compile modes"""
+    NONE = "none"                    # 不使用编译
+    DEFAULT = "default"              # 默认模式，平衡编译时间和性能
+    REDUCE_OVERHEAD = "reduce-overhead"  # 减少开销，适合小 batch
+    MAX_AUTOTUNE = "max-autotune"    # 最大自动调优，需要更多 GPU SM
 
 
 @dataclass
@@ -82,6 +98,7 @@ class TrainingConfig:
     label_smoothing: float = 0.0  # For classification tasks
     gradient_clip: float = 1.0
     use_compile: bool = True  # PyTorch 2.0+
+    compile_mode: str = "default"  # "none", "default", "reduce-overhead", "max-autotune"
 
 
 class LossType(Enum):
@@ -782,11 +799,18 @@ class OptimizedTabTransformerTrainer:
         
         # PyTorch 2.0+ compile
         if self.training_config.use_compile and hasattr(torch, 'compile'):
-            try:
-                self.model = torch.compile(self.model, mode='reduce-overhead')
-                print("   ✅ Model compiled with torch.compile()")
-            except Exception as e:
-                print(f"   ⚠️ torch.compile failed: {e}")
+            compile_mode = self.training_config.compile_mode
+            if compile_mode != "none":
+                try:
+                    # Suppress inductor warnings about SM count
+                    import logging
+                    logging.getLogger("torch._inductor.utils").setLevel(logging.ERROR)
+                    
+                    self.model = torch.compile(self.model, mode=compile_mode)
+                    print(f"   ✅ Model compiled with torch.compile(mode='{compile_mode}')")
+                except Exception as e:
+                    print(f"   ⚠️ torch.compile failed: {e}")
+                    print(f"   ℹ️ Continuing without compilation")
         
         # Parameter count
         total_params = sum(p.numel() for p in self.model.parameters())
@@ -1175,7 +1199,8 @@ def main():
         use_weighted_sampling=True,
         sampling_alpha=0.5,
         gradient_clip=1.0,
-        use_compile=True
+        use_compile=True,
+        compile_mode="default"  # "none", "default", "reduce-overhead", "max-autotune"
     )
     
     # Check data file
