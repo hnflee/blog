@@ -1271,7 +1271,7 @@ class OptimizedTabTransformerTrainer:
             load_training_state: Whether to load optimizer, scheduler, etc. (default: True)
         """
         path = os.path.join(self.model_save_dir, filename)
-        checkpoint = torch.load(path, map_location=self.device)
+        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
         
         # Load model state
         if hasattr(self.model, 'module'):
