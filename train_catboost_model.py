@@ -766,8 +766,9 @@ def main():
     # best_params = trainer.hyperparameter_tuning(X_train, y_train, n_iter=10)
     # tuned_metrics = trainer.evaluate_model(X_test, y_test)
 
-    # Cross-validation
-    cv_results = trainer.cross_validation(X_train, y_train, n_folds=5)
+    # Cross-validation (commented out for faster execution)
+    # Uncomment the following line for cross-validation
+    # cv_results = trainer.cross_validation(X_train, y_train, n_folds=5)
 
     # Save model
     model_dir = '/Users/lifeng/Documents/ai_code/rms_pytorch/nh_rms_pytorch/nh_work/model_alldata_v2_class/catboost'
@@ -795,14 +796,16 @@ def main():
     print(f"  Precision: {basic_metrics['Precision']:.4f}")
     print(f"  Recall: {basic_metrics['Recall']:.4f}")
     print(f"  F1: {basic_metrics['F1']:.4f}")
-    print(f"\nCross-Validation Performance:")
-    print(f"  Accuracy: {cv_results['Accuracy_mean']:.4f} ± {cv_results['Accuracy_std']:.4f}")
-    print(f"  F1: {cv_results['F1_mean']:.4f} ± {cv_results['F1_std']:.4f}")
-    print(f"  Precision: {cv_results['Precision_mean']:.4f} ± {cv_results['Precision_std']:.4f}")
-    print(f"  Recall: {cv_results['Recall_mean']:.4f} ± {cv_results['Recall_std']:.4f}")
+    
+    # Cross-validation results (uncomment if cv_results is available)
+    # print(f"\nCross-Validation Performance:")
+    # print(f"  Accuracy: {cv_results['Accuracy_mean']:.4f} ± {cv_results['Accuracy_std']:.4f}")
+    # print(f"  F1: {cv_results['F1_mean']:.4f} ± {cv_results['F1_std']:.4f}")
+    # print(f"  Precision: {cv_results['Precision_mean']:.4f} ± {cv_results['Precision_std']:.4f}")
+    # print(f"  Recall: {cv_results['Recall_mean']:.4f} ± {cv_results['Recall_std']:.4f}")
 
-    return trainer, basic_metrics, cv_results
+    return trainer, basic_metrics
 
 
 if __name__ == "__main__":
-    trainer, basic_metrics, cv_results = main()
+    trainer, basic_metrics = main()
