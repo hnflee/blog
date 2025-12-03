@@ -135,26 +135,6 @@ class XGBoostTrainer:
             sample_weight = np.array([weight_map[label] for label in y_train])
             print(f"Sample weight range: [{sample_weight.min():.4f}, {sample_weight.max():.4f}]")
 
-        # Improved default parameters
-        self.model = xgb.XGBClassifier(
-            n_estimators=300,  # Increased from 100
-            max_depth=6,
-            learning_rate=0.05,  # Reduced from 0.1 for better convergence
-            subsample=0.8,
-            colsample_bytree=0.8,
-            min_child_weight=1,  # Added for regularization
-            gamma=0.1,  # Added for regularization
-            reg_alpha=0.1,  # Added L1 regularization
-            reg_lambda=1.0,  # Added L2 regularization
-            random_state=self.random_state,
-            n_jobs=-1,
-            objective='multi:softprob',
-            eval_metric='mlogloss',
-            num_class=len(self.label_encoder.classes_),
-            tree_method='hist',  # Faster training
-            verbosity=1
-        )
-
         # Use early stopping if validation set is available
         if use_early_stopping:
             # Split training data for validation
@@ -174,12 +154,31 @@ class XGBoostTrainer:
                 )
                 train_sample_weight = sample_weight[train_indices]
             
-            # Use early_stopping_rounds parameter (compatible with all XGBoost versions)
+            # Improved default parameters with early_stopping_rounds in constructor (XGBoost 1.6+)
+            self.model = xgb.XGBClassifier(
+                n_estimators=300,  # Increased from 100
+                max_depth=6,
+                learning_rate=0.05,  # Reduced from 0.1 for better convergence
+                subsample=0.8,
+                colsample_bytree=0.8,
+                min_child_weight=1,  # Added for regularization
+                gamma=0.1,  # Added for regularization
+                reg_alpha=0.1,  # Added L1 regularization
+                reg_lambda=1.0,  # Added L2 regularization
+                random_state=self.random_state,
+                n_jobs=-1,
+                objective='multi:softprob',
+                eval_metric='mlogloss',
+                num_class=len(self.label_encoder.classes_),
+                tree_method='hist',  # Faster training
+                early_stopping_rounds=20,  # Moved to constructor for XGBoost 1.6+
+                verbosity=1
+            )
+            
             self.model.fit(
                 X_train_fit, y_train_fit,
                 sample_weight=train_sample_weight,
                 eval_set=[(X_val, y_val)],
-                early_stopping_rounds=20,
                 verbose=True
             )
             
@@ -189,6 +188,25 @@ class XGBoostTrainer:
             if hasattr(self.model, 'best_score'):
                 print(f"Best score: {self.model.best_score:.4f}")
         else:
+            # Improved default parameters without early stopping
+            self.model = xgb.XGBClassifier(
+                n_estimators=300,  # Increased from 100
+                max_depth=6,
+                learning_rate=0.05,  # Reduced from 0.1 for better convergence
+                subsample=0.8,
+                colsample_bytree=0.8,
+                min_child_weight=1,  # Added for regularization
+                gamma=0.1,  # Added for regularization
+                reg_alpha=0.1,  # Added L1 regularization
+                reg_lambda=1.0,  # Added L2 regularization
+                random_state=self.random_state,
+                n_jobs=-1,
+                objective='multi:softprob',
+                eval_metric='mlogloss',
+                num_class=len(self.label_encoder.classes_),
+                tree_method='hist',  # Faster training
+                verbosity=1
+            )
             self.model.fit(X_train, y_train, sample_weight=sample_weight)
         
         print("Basic model training completed.")
@@ -290,15 +308,14 @@ class XGBoostTrainer:
             objective='multi:softprob', 
             eval_metric='mlogloss',
             num_class=len(self.label_encoder.classes_),
-            tree_method='hist'
+            tree_method='hist',
+            early_stopping_rounds=20  # In constructor for XGBoost 1.6+
         )
         
-        # Use early_stopping_rounds parameter (compatible with all XGBoost versions)
         self.model.fit(
             X_train_fit, y_train_fit,
             sample_weight=sample_weight[:len(X_train_fit)] if sample_weight is not None else None,
             eval_set=[(X_val, y_val)],
-            early_stopping_rounds=20,
             verbose=False
         )
 
